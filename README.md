@@ -59,24 +59,40 @@
 
 ### `search_listings`
 
-- **What it does:**
-- **Inputs:** <!-- name and type each: `max_price` (float), not "a price" -->
-- **Returns:**
-- **When it has nothing:**
+- **What it does:** Finds listings that match a text description, optionally
+  filtered by size and a price ceiling, and returns the best matches first.
+- **Inputs:** `description` (str, keywords like "vintage graphic tee"),
+  `size` (str | None, None skips size filtering), `max_price` (float | None,
+  inclusive, None skips price filtering).
+- **Returns:** A list of at most `config.SEARCH_RESULT_LIMIT` listing dicts,
+  sorted by keyword-overlap score, highest first. Each dict has id, title,
+  description, category, style_tags, size, condition, price, colors, brand
+  (may be None), platform. Size matching: <YOUR RULE, e.g. case-insensitive
+  match against whole size tokens, so "M" matches "S/M" but not "US 9" or "XL">.
+  Listings scoring zero keyword matches are dropped.
+- **When it has nothing:** Returns `[]` (never None, never an exception).
 
 ### `suggest_outfit`
 
-- **What it does:**
-- **Inputs:**
-- **Returns:**
-- **When it has nothing:**
+- **What it does:** Suggests one or two outfits combining the thrifted item
+  with pieces from the user's wardrobe.
+- **Inputs:** `new_item` (dict, one listing as returned by search_listings),
+  `wardrobe` (dict with an `items` key holding a list of wardrobe item dicts;
+  the list may be empty).
+- **Returns:** A non-empty str of outfit suggestions that names specific
+  wardrobe pieces by name.
+- **When it has nothing:** If `wardrobe["items"]` is empty, returns a non-empty
+  str of general styling advice for the item instead (no error, no "").
 
 ### `create_fit_card`
 
-- **What it does:**
-- **Inputs:**
-- **Returns:**
-- **When it has nothing:**
+- **What it does:** Writes a short social-media-style caption about the find.
+- **Inputs:** `outfit` (str, output of suggest_outfit), `new_item` (dict, the
+  listing).
+- **Returns:** A str of 2-4 sentences that mentions the item, its price, and
+  its platform once each, and sounds like a real post.
+- **When it has nothing:** If `outfit` is empty or whitespace, returns a
+  str message such as "No outfit to caption yet" without calling the model.
 
 ---
 
@@ -92,6 +108,9 @@
 
      The grader checks your code against what you claim here, so the file and
      function have to be real. -->
+
+     If `search_listings` returns `[]`, store a message in the session naming what to change (size, price, keywords) and stop without calling `suggest_outfit`.
+     Otherwise store the first result as `session["selected_item"]` and continue.
 
 **Branch rule:**
 
