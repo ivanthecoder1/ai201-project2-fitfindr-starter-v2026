@@ -142,17 +142,37 @@ $ python app.py ask '...'
 $ python -c "from tools import search_listings; print(search_listings('graphic tee', max_price=30))"
 
 ```
+[{'id': 'lst_006', 'title': 'Graphic Tee — 2003 Tour Bootleg Style', 'description': 'Vintage-style bootleg tee with faded graphic. Slightly boxy fit. 100% cotton, soft and worn-in.', 'category': 'tops', 'style_tags': ['graphic tee', 'vintage', 'grunge', 'streetwear', 'band tee'], 'size': 'L', 'condition': 'good', 'price': 24.0, 'colors': ['black'], 'brand': None, 'platform': 'depop'}, {'id': 'lst_002', 'title': 'Y2K Baby Tee — Butterfly Print', 'description': 'Super cute early 2000s baby tee with butterfly graphic. Fitted crop length. Tag says medium but fits like a small.', 'category': 'tops', 'style_tags': ['y2k', 'vintage', 'graphic tee', 'cottagecore'], 'size': 'S/M', 'condition': 'excellent', 'price': 18.0, 'colors': ['white', 'pink', 'purple'], 'brand': None, 'platform': 'depop'}, {'id': 'lst_033', 'title': 'Vintage Band Tee — Faded Grey', 'description': 'Faded grey band-style tee with distressed graphic. Crew neck. Fits boxy. Well-loved but no holes or major damage.', 'category': 'tops', 'style_tags': ['vintage', 'grunge', 'band tee', 'graphic tee', 'streetwear'], 'size': 'L', 'condition': 'fair', 'price': 19.0, 'colors': ['grey', 'charcoal'], 'brand': None, 'platform': 'depop'}]
+(.venv) 
+```
+$ python -c "from tools import suggest_outfit; from utils.data_loader import get_example_wardrobe, get_empty_wardrobe, load_listings; item = load_listings()[0]; print(suggest_outfit(item, get_example_wardrobe())); print('-----'); print(suggest_outfit(item, get_empty_wardrobe()))""
 
 ```
-$ python -c "from tools import suggest_outfit; ..."
+core! Those 501s are a total holy grail find. Here are two effortless ways to style them using your current wardrobe:
+
+**The Off-Duty Streetwear Look:** Tuck your white ribbed tank top into the Vintage Levi's 501 Jeans — Medium Wash, cinch your waist with the brown leather belt, and layer the oversized grey crewneck sweatshirt on top. Finish the fit with chunky white sneakers and the black crossbody bag for a casual, classic vibe.
+
+**The Edge & Denim Contrast:** Pair the Vintage Levi's 501 Jeans — Medium Wash with the black cropped zip hoodie layered under the vintage black denim jacket for a cool double-denim moment. Lace up your black combat boots and sling the black crossbody bag across your chest to lean into that grungy streetwear aesthetic.
+-----
+Great find! Those 501s are the holy grail of denim. They pair best with fitted or cropped silhouettes to balance the straight leg, and look amazing with earth tones, crisp whites, and vintage leather.
+
+**Outfit 1: The Downtown Coffee Run**
+Tuck a fitted ribbed white tank top into the jeans, layer an oversized forest green corduroy button-down worn open, and slip on some well-worn brown leather loafers or retro sneakers. Add a canvas tote and a simple silver pendant necklace to complete the effortless, cool-girl street style.
+
+**Outfit 2: Retro Coffee & Vinyl**
+Pair the denim with a tucked-in, black-and-white striped long-sleeve t-shirt and a cropped black leather biker jacket. Throw on chunky black combat boots and a mustard-yellow beanie for a pop of color that plays off the indigo wash.
+(.venv) 
+```
+$ python -c "import config; config.CACHE_ENABLED = False; from tools import create_fit_card; from utils.data_loader import load_listings; item = load_listings()[0]; [print(create_fit_card('jeans and white sneakers', item), '\n-----') for _ in range(3)]"
 
 ```
-
-```
-$ python -c "from tools import create_fit_card; ..."
-
-```
-
+Absolute score on these vintage Levi's 501s. They've got that perfect broken-in medium wash and fit like an absolute dream. Snagged them on depop for $38.00 and I'm basically going to live in them with my favorite white sneakers all fall. 
+-----
+Found these vintage Levi's 501 jeans on depop for $38 and I am never taking them off. They have that perfect, broken-in medium wash that looks amazing with just a basic white tee and fresh sneakers. Absolute secondhand gold. 
+-----
+Scored these medium wash vintage Levi's 501s for $38 on depop and they fit like an absolute dream. The wash has that perfect worn-in 90s vibe without looking try-hard. Just going to throw them on with my beat-up white sneakers and call it a day. 
+-----
+(.venv) gi
 ---
 
 ## How I Used AI
