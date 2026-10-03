@@ -41,7 +41,13 @@
 
 <!-- Three or four sentences: what a user asks for, and what they get back. -->
 
-
+FitFindr is a thrifting agent. A user types what they want in plain language,
+like "vintage graphic tee under $30", and the agent parses out the item, size,
+and price ceiling, searches a file of secondhand listings, and picks the best
+match. It then suggests outfits that combine that item with the user's
+wardrobe and writes a short social-media caption for the find. If nothing
+matches, it stops and tells the user which filter to loosen instead of
+generating an outfit for nothing.
 
 ---
 
@@ -112,13 +118,28 @@
      If `search_listings` returns `[]`, store a message in the session naming what to change (size, price, keywords) and stop without calling `suggest_outfit`.
      Otherwise store the first result as `session["selected_item"]` and continue.
 
-**Branch rule:**
+**Branch rule:** If `search_listings` returns `[]`, the loop puts a message in
+`session["error"]` that names the search and what to change (drop the size
+filter, raise the price limit, or use different keywords), then returns
+without calling `suggest_outfit` or `create_fit_card`. Otherwise it selects
+the first result as `session["selected_item"]` and continues through
+`suggest_outfit` and `create_fit_card`.
 
-**Where it lives:** `agent.py::run_agent`
+**Where it lives:** `agent.py::run_agent`. The branch is the `stop_empty`
+step, which `agent.py::_next_step` chooses by reading the session. The
+message is built by `agent.py::_empty_message`, which re-runs the search with
+one filter dropped to find out which filter was blocking results.
 
-**How the query is parsed:** <!-- regex, string splitting, or asking the model — say which -->
+**How the query is parsed:** Regex, in `agent.py::parse_query`, with no model
+call. One pattern pulls out the size ("size M"), one pulls out the price
+ceiling ("under $30"), and what remains becomes the description.
 
-**What moves through the session:** <!-- which fields, in what order -->
+**What moves through the session:** `query` -> `parsed` (description, size,
+max_price) -> `searched` -> `search_results` -> `selected_item` ->
+`suggest_item_id` (the id of the item `suggest_outfit` actually received) ->
+`outfit_suggestion` -> `fit_card`. `error` is set only when the run ends
+early. Each tool's result goes into the session, and the next step reads it
+back out, so the state can be printed and checked.
 
 ---
 
@@ -132,7 +153,22 @@
 **One full query**
 
 ```
-$ python app.py ask '...'
+$ python app.py ask 'vintage graphic tee under $30'
+
+  Found:    Graphic Tee — 2003 Tour Bootleg Style — $24.0 on depop
+
+  Outfit:   Hey there! What an amazing find—that bootleg tee has the best lived-in vibe. Here are two ways to style it using your wardrobe:
+
+**The Ultimate Grunge Look:** 
+Pair the graphic tee with your baggy straight-leg jeans, and lace up the black combat boots for that effortless 90s edge. Layer your vintage black denim jacket on top, and finish the whole fit with your black crossbody bag. 
+
+**Streetwear Contrast:** 
+Tuck the tee into your wide-leg khaki trousers secured with the brown leather belt to balance the boxy fit. Throw your black cropped zip hoodie over your shoulders or wear it unzipped, and step into your chunky white sneakers, grabbing your black crossbody bag to run out the door.
+
+  Fit card: Scored this 2003 tour bootleg tee on depop for $24 and I am never taking it off. It has the absolute best grunge fade and feels like it was stolen straight from the back of a real venue. Can't wait to style this with baggy denim and beat-up combat boots for maximum 90s slouch.
+
+0 model calls this session, 2 served from cache
+(.venv) 
 
 ```
 
@@ -186,15 +222,32 @@ Scored these medium wash vintage Levi's 501s for $38 on depop and they fit like 
 
 **Moment 1**
 
-- *What I asked for:* 
-- *What came back:*
-- *What I changed:*
+- *What I asked for:* I asked Claude to write the three tools in tools.py from
+  the starter stubs, and I tested search_listings with
+  `search_listings('graphic tee', max_price=30)`.
+- *What came back:* Nine results. Only three were graphic tees. The rest were
+  a flannel, a polo, cargo pants, and a crewneck sweatshirt. The cause was a
+  synonym map that expanded "tee" to "shirt", plus a rule where one matching
+  keyword was enough to qualify a listing.
+- *What I changed:* I removed the "shirt" synonym and required most of the
+  query's keywords to match. A mesh top still slipped through because its
+  description said "layering under a graphic tee", so I made keywords qualify
+  a listing only when they appear in the title, tags, category, colors, or
+  brand. The description now affects ranking only. The search returns exactly
+  the three tees. The tradeoff is that phrasings only found in descriptions
+  will miss, which is why criterion 1 targets 4 of 5.
 
 **Moment 2**
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+- *What I asked for:* I tested create_fit_card three times on the same item.
+- *What came back:* Three word-for-word identical captions. `TEMPERATURE` in
+  config.py was 0.0 (and the cache was on). After I raised it, the captions
+  varied, but two read as if the poster was selling the jeans ("I'm listing
+  these on depop", "finally listed on my depop").
+- *What I changed:* I raised TEMPERATURE to 0.9. I rewrote the caption
+  system prompt to say the poster just bought the item, never to write as if
+  they're selling it, and to name the platform as where it was found. All
+  three new captions read as buyers.
 
 <!-- ═══════════════════════ UNIT 4 — THE TEST ═══════════════════════
 
