@@ -172,7 +172,7 @@ Found these vintage Levi's 501 jeans on depop for $38 and I am never taking them
 -----
 Scored these medium wash vintage Levi's 501s for $38 on depop and they fit like an absolute dream. The wash has that perfect worn-in 90s vibe without looking try-hard. Just going to throw them on with my beat-up white sneakers and call it a day. 
 -----
-(.venv) gi
+(.venv) 
 ---
 
 ## How I Used AI
@@ -186,7 +186,7 @@ Scored these medium wash vintage Levi's 501s for $38 on depop and they fit like 
 
 **Moment 1**
 
-- *What I asked for:*
+- *What I asked for:* 
 - *What came back:*
 - *What I changed:*
 
