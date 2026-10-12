@@ -251,21 +251,47 @@ Scored these medium wash vintage Levi's 501s for $38 on depop and they fit like 
 
 <!-- ═══════════════════════ UNIT 4 — THE TEST ═══════════════════════
 
-     Don't fill these in during unit 3.
      ═══════════════════════════════════════════════════════════════════ -->
 
      
 **Moment 1**
 
-- *What I asked for:* check my scenarios
-- *What came back:* 
-- *What I changed:* 
+- *What I asked for:* I gave Claude my criteria and the output of my first
+  `run_eval.py --label before` run and asked it to check whether my scenarios
+  and criteria could actually be scored.
+- *What came back:* Claude pointed out that criterion 4 ("mentions the item's
+  name") was unmeasurable. I scored the five `y2k baby tee under $20` captions
+  myself. All five had 3 sentences, a price and "depop", but none contained the
+  full title "Y2K Baby Tee — Butterfly Print", so a strict reading scored 0 of 5
+  on captions that were all fine. It also flagged that my `denim jacket under $40`
+  scenario returned `[]` (the only jacket costs $42), so it passed criterion 5
+  without testing anything, and that criterion 3 compared an id with the variable
+  it was read from.
+- *What I changed:* I left the original criterion 4 in `criteria.md` and added a
+  revision underneath that requires digits for the price and two distinctive
+  words from the title, with the reason. I stopped counting the `$40` scenario
+  and used `graphic tee under $18`, which returns `lst_002` at exactly $18.0, as
+  the real boundary test. I kept my own verdicts, including MISSED for criterion
+  4 as originally worded, and did not take Claude's suggested wording for the
+  other criteria.
 
 **Moment 2**
 
-- *What I asked for:* rewrite tools
-- *What came back:* 
-- *What I changed:* 
+- *What I asked for:* My diagnosis found that `vintage graphic tee under $30`
+  returned the Vintage Graphic Hoodie. I asked Claude to rewrite `search_listings`
+  so the item-type word (tee, jacket, dress) has to match.
+- *What came back:* Code that used a new `_ITEM_TYPES` set and a new `_score`.
+  My first `--label after` run crashed 50 of 50 tries. I had pasted the new
+  `search_listings` but not the `_ITEM_TYPES` definition, so the MCP server raised
+  a `NameError` that the client only reported as "unhandled errors in a
+  TaskGroup". On top of that, `agent.py` raised `NameError: name 'QuotaGuard' is
+  not defined`, because I had never imported `QuotaGuard` for the `except` clause,
+  and that hid the first error. 
+- *What I changed:* I found the real error by calling `search_listings` directly
+  instead of through MCP, added `_ITEM_TYPES` above `_score`, and added
+  `QuotaGuard` to the import in `agent.py`. The re-run worked: the hoodie
+  disappeared (4 results down to 3) and the other seven queries returned the same
+  number of results. I only reported the clean run as my "after" evidence.
 
 ---
 
@@ -505,7 +531,7 @@ measurement.
 <!-- For each criterion still missed: what you'd do, and why you stopped where
      you did. "I ran out of time" is fine if it's true. Pretending nothing is
      left is not. -->
-     
+
 - **Criterion 4 (fit card names the item).** The original wording was unmeasurable,
   and under the revised wording the model still sometimes shortens the name to
   "butterfly tee". In the matching-query scenario, try 2 never names the item at all.
