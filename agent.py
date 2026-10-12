@@ -137,9 +137,13 @@ def run_agent(query: str, wardrobe: dict) -> dict:
     create_fit_card. Otherwise take the first result as session["selected_item"]
     and continue through suggest_outfit and create_fit_card.
 
+    search_listings is called through MCP (mcp_client.call_tool). Failures from
+    the model or the MCP server are caught and turned into session["error"].
+
     Check session["error"] first: if it isn't None, the run ended early.
     """
     session = new_session(query, wardrobe)
+    trace.start_trace()
 
     count = 0
     while True:
@@ -148,38 +152,109 @@ def run_agent(query: str, wardrobe: dict) -> dict:
 
         step = _next_step(session)
 
-        if step == "parse":
-            session["parsed"] = parse_query(session["query"])
+        try:
+            if step == "parse":
+                session["parsed"] = parse_query(session["query"])
+                p = session["parsed"]
+                trace.step(
+                    "parse_query (regex)",
+                    inputs=repr(session["query"]),
+                    returned=(
+                        f"description={p['description']!r}, "
+                        f"size={p['size']!r}, max_price={p['max_price']!r}"
+                    ),
+                )
 
-        elif step == "search":
-            p = session["parsed"]
-            session["search_results"] = call_tool("search_listings", {
-                "description": p["description"],
-                "size": p["size"],
-                "max_price": p["max_price"],
-            }) or []
-            session["searched"] = True
+            elif step == "search":
+                p = session["parsed"]
+                args = {"description": p["description"]}
+                if p["size"] is not None:
+                    args["size"] = p["size"]
+                if p["max_price"] is not None:
+                    args["max_price"] = p["max_price"]
+                session["search_results"] = call_tool("search_listings", args) or []
+                session["searched"] = True
+                trace.step(
+                    "search_listings (via MCP)",
+                    inputs=", ".join(f"{k}={v!r}" for k, v in args.items()),
+                    returned=session["search_results"],
+                )
 
-        elif step == "stop_empty":
-            session["error"] = _empty_message(session["parsed"])
-            return session
+            elif step == "stop_empty":
+                # THE BRANCH: search came back empty, so stop before suggest_outfit
+                session["error"] = _empty_message(session["parsed"])
+                trace.step(
+                    "stop",
+                    inputs="search_results = []",
+                    returned=session["error"],
+                    note="branch: empty search, stopping before suggest_outfit",
+                )
+                return session
 
-        elif step == "select":
-            session["selected_item"] = session["search_results"][0]
+            elif step == "select":
+                session["selected_item"] = session["search_results"][0]
+                trace.step(
+                    "select first result",
+                    inputs=f"{len(session['search_results'])} results",
+                    returned=session["selected_item"],
+                    note=f"id={session['selected_item']['id']}",
+                )
 
-        elif step == "suggest":
-            item = session["selected_item"]          # read back out of the session
-            session["suggest_item_id"] = item["id"]  # record what the tool received
-            session["outfit_suggestion"] = suggest_outfit(item, session["wardrobe"])
+            elif step == "suggest":
+                item = session["selected_item"]          # read back out of the session
+                session["suggest_item_id"] = item["id"]  # record what the tool received
+                session["outfit_suggestion"] = suggest_outfit(item, session["wardrobe"])
+                trace.step(
+                    "suggest_outfit",
+                    inputs=(
+                        f"item id={item['id']}, "
+                        f"wardrobe items={len(session['wardrobe'].get('items', []))}"
+                    ),
+                    returned=session["outfit_suggestion"],
+                )
 
-        elif step == "fit_card":
-            session["fit_card"] = create_fit_card(
-                session["outfit_suggestion"], session["selected_item"]
+            elif step == "fit_card":
+                session["fit_card"] = create_fit_card(
+                    session["outfit_suggestion"], session["selected_item"]
+                )
+                trace.step(
+                    "create_fit_card",
+                    inputs=(
+                        f"item id={session['selected_item']['id']}, "
+                        "outfit text passed from session"
+                    ),
+                    returned=session["fit_card"],
+                )
+
+            else:  # "done"
+                return session
+
+        except ModelUnavailable as exc:
+            session["error"] = (
+                f"The model couldn't be reached, so the run stopped at '{step}'. "
+                f"{exc} Fix that and run the query again."
             )
-
-        else:  # "done"
             return session
-
+        except QuotaGuard:
+            session["error"] = (
+                "This session hit its request budget, which usually means something "
+                "is looping. Stop and restart the program, then try again."
+            )
+            return session
+        except MCPError as exc:
+            session["error"] = (
+                f"The listings service (MCP server) couldn't be reached: {exc} "
+                "Check that `python mcp_server.py` runs on its own, then try again."
+            )
+            return session
+        except RuntimeError as exc:
+            # generate() raises this after repeated rate limiting. MCPError is a
+            # RuntimeError subclass, so it must stay above this clause.
+            session["error"] = (
+                "The model is rate limiting requests. Wait about a minute and "
+                f"run the query again. ({exc})"
+            )
+            return session
 
 # ── running it directly ───────────────────────────────────────────────────────
 

@@ -331,19 +331,61 @@ that produced it:
 **Happy path**
 
 ```
+$ python app.py ask 'vintage graphic tee under $30' --trace
+[1] parse_query (regex)
+      in:  'vintage graphic tee under $30'
+      out: description='vintage graphic tee', size=None, max_price=30.0
+[2] search_listings (via MCP)
+      in:  description='vintage graphic tee', max_price=30.0
+      out: 4 items: Graphic Tee — 2003 Tour Bootleg Style, Vintage Band Tee — Faded Grey, Vintage Graphic Hoodie — Faded Black … +1 more
+[3] select first result
+      in:  4 results
+      out: Graphic Tee — 2003 Tour Bootleg Style ($24.0, depop)
+      →    id=lst_006
+[4] suggest_outfit
+      in:  item id=lst_006, wardrobe items=10
+      out: Hey there! What an amazing find—that bootleg tee has the best lived-in vibe. Here are two ways to style it usi…
+[5] create_fit_card
+      in:  item id=lst_006, outfit text passed from session
+      out: Scored this 2003 tour bootleg tee on depop for $24 and I am never taking it off. It has the absolute best grun…
+````
+
+Five steps. The item id (`lst_006`) is the same at select, suggest_outfit and
+create_fit_card, so the item moved through the session unchanged.
 
 ```
 
 **Empty search**
 
 ```
+$ python app.py ask 'designer ballgown size XXS under $5' --trace
+[1] parse_query (regex)
+      in:  'designer ballgown size XXS under $5'
+      out: description='designer ballgown', size='XXS', max_price=5.0
+[2] search_listings (via MCP)
+      in:  description='designer ballgown', size='XXS', max_price=5.0
+      out: [] (empty)
+[3] stop
+      in:  search_results = []
+      out: No listings matched 'designer ballgown', size XXS, under $5. You could: try different or fewer keywords (the i…
+      →    branch: empty search, stopping before suggest_outfit
 
+  No listings matched 'designer ballgown', size XXS, under $5. You could: try different or fewer keywords (the item type alone, like 'jacket' or 'jeans', is the broadest search).
+
+0 model calls this session
 ```
 
-**On the MCP move:** <!-- what changed in your code, and whether anything
-behaved differently afterwards. If the rewire didn't work, say exactly where it
-broke — the error text and the last thing that worked. That earns the point in
-full. -->
+**On the MCP move:** I moved `search_listings` onto MCP. `mcp_server.py` registers
+it with typed inputs and a description that names units, the size rule and the
+empty case, and it wraps the same implementation in `tools.py`. In
+`agent.py::run_agent`, the search step now calls
+`mcp_client.call_tool("search_listings", args)` instead of calling the function
+directly; I omit `size` and `max_price` from the arguments when they are `None`,
+and add `or []` so a missing result still takes the empty branch. The returned
+value did not change: a list of dicts, `price` still a float, `brand` still
+`None`. The empty-search branch also still worked over MCP. One caveat:
+`agent.py::_empty_message` still calls `search_listings` directly, so it
+bypasses MCP.
 
 
 
