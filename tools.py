@@ -78,15 +78,20 @@ def _size_matches(wanted: str, listing_size: str) -> bool:
         return True
     return wanted_tokens <= set(_tokens(listing_size))
 
+# Item-type words (in the normalized form _norm produces, so "jeans" -> "jean").
+# If the query contains one, a listing must match it to qualify.
+_ITEM_TYPES = {
+    "tee", "tshirt", "shirt", "top", "tank", "hoodie", "sweatshirt", "sweater",
+    "jacket", "coat", "blazer", "jean", "pant", "trouser", "short", "skirt",
+    "dress", "sneaker", "boot", "shoe", "loafer", "bag", "belt", "hat",
+}
 
-def _score(listing: dict, words: set[str]) -> tuple[int, int]:
+def _score(listing: dict, words: set[str]) -> tuple[set[str], int]:
     """
-    Returns (distinct keywords matched, weighted score).
+    Returns (set of keywords matched, weighted score).
     A keyword only counts as matched if it appears in a structured field.
-    The description adds to the score for ranking but can't qualify a listing
-    on its own, because descriptions mention other items ("under a graphic tee").
+    The description adds to the score but can't qualify a listing on its own.
     """
-    # (weight, text, counts_toward_match)
     fields = [
         (3, listing.get("title"), True),
         (2, " ".join(listing.get("style_tags") or []), True),
@@ -99,17 +104,14 @@ def _score(listing: dict, words: set[str]) -> tuple[int, int]:
         (weight, {_norm(t) for t in _tokens(text or "")}, counts)
         for weight, text, counts in fields
     ]
-    matched, score = 0, 0
+    matched, score = set(), 0
     for w in words:
         candidates = {w} | {_norm(s) for s in _SYNONYMS.get(w, set())}
-        hit = False
         for weight, field_words, counts in field_sets:
             if candidates & field_words:
                 score += weight
                 if counts:
-                    hit = True
-        if hit:
-            matched += 1
+                    matched.add(w)
     return matched, score
 
 
@@ -126,8 +128,9 @@ def search_listings(
     Matching rules:
       - max_price is inclusive; None skips the price filter.
       - size is a case-insensitive whole-token match; None skips it.
-      - A listing must contain every keyword (or all but one when the query
-        has 3+ keywords). Results are sorted by weighted score, best first.
+      - A listing must match every keyword (all but one when the query has 3+
+        keywords), AND must match every item-type keyword in the query
+        (tee, jacket, dress, ...). Results are sorted by weighted score.
 
     Returns up to config.SEARCH_RESULT_LIMIT listing dicts.
     Returns [] when nothing matches (never None, never an exception).
@@ -136,6 +139,7 @@ def search_listings(
     if not words:
         return []
 
+    type_words = words & _ITEM_TYPES
     needed = len(words) if len(words) <= 2 else len(words) - 1
     scored = []
 
@@ -145,10 +149,9 @@ def search_listings(
         if size is not None and not _size_matches(size, listing.get("size") or ""):
             continue
         matched, score = _score(listing, words)
-        if matched >= needed:
+        if len(matched) >= needed and type_words <= matched:
             scored.append((score, listing))
 
-    # sorted() is stable, so ties keep file order
     scored.sort(key=lambda pair: pair[0], reverse=True)
     return [listing for _, listing in scored[: config.SEARCH_RESULT_LIMIT]]
 

@@ -254,6 +254,19 @@ Scored these medium wash vintage Levi's 501s for $38 on depop and they fit like 
      Don't fill these in during unit 3.
      ═══════════════════════════════════════════════════════════════════ -->
 
+     
+**Moment 1**
+
+- *What I asked for:* check my scenarios
+- *What came back:* 
+- *What I changed:* 
+
+**Moment 2**
+
+- *What I asked for:* rewrite tools
+- *What came back:* 
+- *What I changed:* 
+
 ---
 
 ## Run Log — Before
@@ -455,24 +468,33 @@ bypasses MCP.
 
      `python run_eval.py --label after` -->
 
-**What I changed:**
+**What I changed:** `tools.py::search_listings` now requires the item-type keyword (tee, jacket, dress, ...) to match, on top of the existing "all but one keyword" rule for queries of 3+ keywords. One change. I did not touch the prompts, the loop, or the MCP server.
 
-**Which failure it was meant to fix:**
+**Which failure it was meant to fix:** the search step let a wrong item through. `vintage graphic tee under $30` returned the Vintage Graphic Hoodie because the 3-keyword rule only needs 2 of 3 keywords, and the hoodie matches "vintage" and "graphic" but not "tee". The right tee was still ranked first, so every criterion passed in the before run. The defect was real but none of my five criteria measured it.
 
 ### Run Log — After
 
 | Criterion | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict |
 |---|---|---|---|---|---|---|---|
-| 1.  |  |  |  |  |  |  |  |
-| 2.  |  |  |  |  |  |  |  |
-| 3.  |  |  |  |  |  |  |  |
-| 4.  |  |  |  |  |  |  |  |
-| 5.  |  |  |  |  |  |  |  |
+| 1. Matching query completes all three tools (`vintage graphic tee under $30`) | 4 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 2. Impossible query stops before suggest_outfit and names what to change | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 3. Selected item id matches the id suggest_outfit received (`band tee under $25`) | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 4. Fit card, revised wording: 2-4 sentences, digit price, platform, 2+ distinctive title words (`y2k baby tee under $20`) | 4 of 5 | PASS | PASS | PASS | FAIL | PASS | MET (4/5) |
+| 5. No returned listing over max_price (`graphic tee under $18`) | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
 
 **Did it help, and how do I know:**
 
 <!-- If it made things worse, say that. Honestly reported, that earns full
      credit and is more interesting than one that worked. -->
+
+Yes for the defect it targeted: the hoodie is
+gone and the search step dropped from 4 results to 3, with no change in the other
+seven queries, so I found no regression. It did not move any criterion row, because
+no criterion measured the defect. Criterion 4 went from 5/5 (before, revised
+wording) to 4/5, but that is not caused by the search change: `lst_002` is the only
+result before and after, and the caption prompt is identical. It is the model
+sometimes shortening the item name, which also shows that five tries is a noisy
+measurement.
 
 
 
@@ -483,7 +505,27 @@ bypasses MCP.
 <!-- For each criterion still missed: what you'd do, and why you stopped where
      you did. "I ran out of time" is fine if it's true. Pretending nothing is
      left is not. -->
-
+     
+- **Criterion 4 (fit card names the item).** The original wording was unmeasurable,
+  and under the revised wording the model still sometimes shortens the name to
+  "butterfly tee". In the matching-query scenario, try 2 never names the item at all.
+  I would change the caption prompt to require the item type plus one distinctive
+  word from the title. I stopped because I picked one change for this milestone.
+- **Prices written in words.** Three captions said "forty-two bucks", "forty-two
+  dollars" and "eighteen bucks", which fails the digits rule. I would add "write the
+  price in digits, like $18" to the prompt.
+- **Invented details.** Captions add things that aren't in the listing ("pop star",
+  "mall rat", "breezy sundresses to chunky knits"). No criterion measures this. I
+  would tell the prompt to use only facts from the listing and add a criterion that
+  counts details absent from the title, description and tags.
+- **Criteria 1 and 3 were too easy.** Criterion 1 passed 15 of 15 on queries I had
+  already tuned the search for, so my 4-of-5 reason was never tested. Criterion 3
+  compares an id with the variable it was read from. I would add messy phrasings
+  ("t-shirt with a band logo", "trainers size 8") and tighten criterion 1 to 5 of 5.
+- **The new search rule is hand-maintained.** The item-type list is written by hand,
+  so a word outside it ("cardigan", "romper") isn't enforced, and "short" in the list
+  would wrongly require a match for "short sleeve". `agent.py::_empty_message` still
+  calls `search_listings` directly instead of through MCP.
 
 
 <!-- ═════════════════════════════════════════════════════════════════════
