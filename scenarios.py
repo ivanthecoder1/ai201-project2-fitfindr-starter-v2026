@@ -14,39 +14,86 @@ own criteria need — these are a starting point, not a fixed set.
 """
 
 SCENARIOS = [
+    # ── Criterion 1: a matching query completes all three tools ──────────────
+    # Different phrasings, because your reason for 4 of 5 is that keyword
+    # matching can miss. The same query five times wouldn't test that.
     {
-        # A query the data can match. Criterion 1.
         "name": "matching query completes",
         "query": "vintage graphic tee under $30",
         "wardrobe": "example",
         "criterion": 1,
     },
     {
-        # A query nothing can match. Criterion 2 — the branch.
+        "name": "matching query with a size",
+        "query": "90s track jacket in size M",
+        "wardrobe": "example",
+        "criterion": 1,
+    },
+    {
+        "name": "matching query, different item type",
+        "query": "denim jacket under $50",
+        "wardrobe": "example",
+        "criterion": 1,
+    },
+
+    # ── Criterion 2: impossible query stops before suggest_outfit ────────────
+    {
         "name": "impossible query stops early",
         "query": "designer ballgown size XXS under $5",
         "wardrobe": "example",
         "criterion": 2,
     },
+
+    # ── Criterion 3: the item that was selected is the item suggest_outfit got
+    # Any normal query works. What's checked is session["selected_item"]["id"]
+    # against session["suggest_item_id"].
     {
-        # A user with nothing saved. One of unit 4's three failure modes.
+        "name": "state: selected item reaches suggest_outfit",
+        "query": "band tee under $25",
+        "wardrobe": "example",
+        "criterion": 3,
+    },
+
+    # ── Criterion 4: fit card is 2-4 sentences, names item, price, platform ──
+    # The same query five times (cache off) gives five fit cards for the same
+    # item, which is what this criterion needs.
+    {
+        "name": "fit card, same item repeated",
+        "query": "y2k baby tee under $20",
+        "wardrobe": "example",
+        "criterion": 4,
+    },
+
+    # ── Criterion 5: nothing returned is over max_price ──────────────────────
+    # The search is deterministic, so repeating one query proves nothing. These
+    # use different ceilings, including one exactly at a listing's price
+    # (lst_002 is $18.0, so "under $18" should still include it).
+    {
+        "name": "price ceiling, boundary",
+        "query": "graphic tee under $18",
+        "wardrobe": "example",
+        "criterion": 5,
+    },
+    {
+        "name": "price ceiling, mid-range",
+        "query": "denim jacket under $40",
+        "wardrobe": "example",
+        "criterion": 5,
+    },
+    {
+        "name": "price ceiling, tight",
+        "query": "vintage tee under $20",
+        "wardrobe": "example",
+        "criterion": 5,
+    },
+
+    # ── Diagnostic: not one of the five criteria ─────────────────────────────
+    {
         "name": "empty wardrobe",
         "query": "denim jacket under $50",
         "wardrobe": "empty",
         "criterion": None,
     },
-    # TODO: add what your criteria 3, 4 and 5 need.
-    #
-    # Set "criterion" to the number in criteria.md that the scenario tests.
-    # "criterion": None means a diagnostic run — useful to have, but it isn't
-    # one of your five, and run_eval.py marks it as such in the table.
-    #
-    # For a state criterion, any normal query works — what you're checking is
-    # what ends up in the session, not what the user typed.
-    #
-    # For a fit-card criterion, you probably want the SAME query listed more
-    # than once, or several different items, depending on what your criterion
-    # actually says.
 ]
 
 WARDROBES = ("example", "empty")
