@@ -322,14 +322,53 @@ Criterion 1, try 1, produced by `agent.py::run_agent` (`tools.py::create_fit_car
 
 | # | Criterion | Target | Verdict | How I decided |
 |---|---|---|---|---|
-| 1 |  |  |  |  |
-| 2 |  |  |  |  |
-| 3 |  |  |  |  |
-| 4 |  |  |  |  |
-| 5 |  |  |  |  |
+| 1 | Matching query completes all three tools and returns a fit card | 4 of 5 | MET (5/5) | `vintage graphic tee under $30` completed 5 of 5, and the two other matching queries also completed 5 of 5 (15 of 15 total). Every try ended with a non-empty fit card. |
+| 2 | Impossible query stops before `suggest_outfit` and names what to change | 5 of 5 | MET (5/5) | All five tries show `[] (empty)`, then `stop`, with no `suggest_outfit` or `create_fit_card` step. The message named the search and a change to make. |
+| 3 | Selected item is the item `suggest_outfit` received | 5 of 5 | MET (5/5) | In all five `band tee under $25` tries, the id at `select` (`lst_033`) matched the id at `suggest_outfit` and `create_fit_card`. |
+| 4 | Fit card is 2-4 sentences and mentions the item's name, price and platform | 4 of 5 | **MISSED (0/5)** as originally worded | Sentences (counted by sentence-ending punctuation): 3 of 3 in all five tries. Price: present in all five ($18 or $18.00). Platform: "depop" in all five. Item name: none of the five captions contains the listing title "Y2K Baby Tee — Butterfly Print". They say "butterfly baby tee" or "butterfly print baby tee". Read plainly, "mentions the item's name" fails 5 of 5 tries. |
+| 5 | No returned listing is over `max_price` | 5 of 5 | MET (5/5) | `graphic tee under $18` returned `lst_002` at exactly $18.0 in all five tries, so the inclusive boundary holds. `vintage tee under $20` returned $19.0 and $18.0. `denim jacket under $40` returned `[]` and passes vacuously, so I'm not counting it. |
 
 **Diagnoses**
+**Criterion 4 (the one miss): the criterion was unmeasurable, not the model.**
+The step is the model's output, but the mechanism is in my wording. I wrote
+"mentions the item's name" without saying whether that means the full listing
+title or a recognizable reference. My caption prompt asks for a post that sounds
+like a person, so the model never repeats a title with an em dash in it. All
+five captions were good captions. Under a strict reading they score 0 of 5, and
+under a "recognizable reference" reading they score 5 of 5. A stranger couldn't
+tell which one I meant. I left the original line in `criteria.md` and added a
+revision underneath that requires two distinctive title words ("butterfly" and
+"baby tee"). The revision changes what is measured, not the target.
 
+**Pattern 1: the search step lets wrong items through, and no criterion caught it.**
+`vintage graphic tee under $30` returns 4 items, including *Vintage Graphic
+Hoodie — Faded Black*. My matching rule requires all but one keyword for queries
+of 3 or more keywords, and the hoodie matches "vintage" and "graphic" but not
+"tee". The selected item (first result) was still the right tee, so criteria 1,
+3 and 5 passed. But the rule is too loose on exactly the queries a real user
+types. This is a tool problem: the item-type keyword isn't required.
+
+**Pattern 2: the model output invents details that aren't in the listing.**
+Across the `y2k baby tee` and `graphic tee under $18` captions the model adds
+"rhinestone graphics", "pink contrast stitching" and "mall-goth energy". None of
+those appear in the listing. The caption prompt says to be specific about the
+vibe, and it never says to use only facts from the listing, so the model fills
+the gap. No criterion measures this, so every row passed anyway.
+
+**Were my targets too low?** Yes, for criteria 1 and 3.
+- Criterion 1 passed 15 of 15. I justified 4 of 5 by saying keyword matching
+  misses phrasings, but I only ran queries I had already tuned the search for,
+  so that reason was never tested. I'd add messier phrasings ("t-shirt with a
+  band logo", "trainers size 8") and tighten the target to 5 of 5.
+- Criterion 3 can barely fail. `suggest_item_id` is read from the same variable
+  I pass in, so the check compares a value with itself. A stronger version
+  checks that the outfit text and caption describe the selected item. They did
+  in all five band-tee tries, but I checked that by eye.
+
+**Small note on criterion 4's price check.** In the `graphic tee under $18`
+scenario, tries 2 and 3 say "eighteen bucks" instead of "$18". My scored
+scenario didn't include that case, but a strict numeric price check would fail
+those two captions.
 
 
 ---
